@@ -1,0 +1,49 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    # Set environment variables at the job level
+    env:
+      PYTHONUNBUFFERED: 1
+      MAX_FILES_TO_REVIEW: 50
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r pr_reviewer/requirements.txt
+
+    # Example of setting environment variables for a specific step
+    - name: Set up environment variables
+      run: |
+        echo "REVIEW_TIMESTAMP=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+        echo "REVIEW_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+
+    - name: Run PR Reviewer
+      # Set environment variables for this specific step
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        REVIEW_TIMESTAMP: ${{ env.REVIEW_TIMESTAMP }}
+        REVIEW_BRANCH: ${{ env.REVIEW_BRANCH }}
+        MAX_FILES: ${{ env.MAX_FILES_TO_REVIEW }}
+      run: |
+        python pr_reviewer/src/run_reviewer.py \
+          --repo ${{ github.repository }} \
+          --pr-number ${{ github.event.pull_request.number }} 
